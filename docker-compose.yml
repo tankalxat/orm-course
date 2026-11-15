@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-learning_platform}
+      POSTGRES_USER: ${DB_USERNAME:-platform}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-platform}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-learning_platform}
+      DB_USERNAME: ${DB_USERNAME:-platform}
+      DB_PASSWORD: ${DB_PASSWORD:-platform}
+      DEMO_DATA_ENABLED: ${DEMO_DATA_ENABLED:-true}
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
+      SQL_LOG_LEVEL: ${SQL_LOG_LEVEL:-INFO}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-learning123}
+      JWT_SECRET: ${JWT_SECRET:-compose-demo-jwt-secret-change-me-32+chars}
+      JWT_TTL: ${JWT_TTL:-PT2H}
+      MAIL_ENABLED: ${MAIL_ENABLED:-true}
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@learning.local}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
+volumes:
+  db-data:

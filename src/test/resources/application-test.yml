@@ -1,0 +1,20 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        generate_statistics: true
+
+logging:
+  level:
+    com.ormcourse.platform: INFO
+    org.hibernate.stat: WARN
+    org.hibernate.engine.internal.StatisticalLoggingSessionEventListener: WARN
+
+app:
+  demo-data:
+    enabled: false
+  security:
+    jwt:
+      secret: test-jwt-secret-with-at-least-32-characters

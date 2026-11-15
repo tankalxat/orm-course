@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Learning Platform</title>
+    <style>
+        :root { --bg: #f6f7f9; --card: #fff; --text: #1f2933; --muted: #6b7280; --accent: #2563eb; --border: #e5e7eb; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+        header { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+        header h1 { font-size: 18px; margin: 0; }
+        header a { color: var(--accent); text-decoration: none; font-size: 14px; }
+        main { display: grid; grid-template-columns: 340px 1fr; gap: 20px; padding: 20px 24px; max-width: 1280px; margin: 0 auto; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+        .card h2 { font-size: 15px; margin: 0 0 12px; }
+        .filters { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        input, select, button { font: inherit; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+        button { background: var(--accent); color: #fff; border-color: var(--accent); cursor: pointer; }
+        button.secondary { background: #fff; color: var(--accent); }
+        .course { padding: 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+        .course:hover { background: var(--bg); }
+        .course.active { border-color: var(--accent); background: #eff6ff; }
+        .course .title { font-weight: 600; }
+        .meta { color: var(--muted); font-size: 13px; }
+        .badge { display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e0e7ff; color: #3730a3; margin-right: 4px; }
+        .badge.DRAFT { background: #fef3c7; color: #92400e; }
+        .badge.ARCHIVED { background: #e5e7eb; color: #374151; }
+        .module { border-left: 3px solid var(--accent); padding-left: 12px; margin: 12px 0; }
+        .module h3 { font-size: 14px; margin: 0 0 6px; }
+        ol { margin: 4px 0; padding-left: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 500; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .stat { background: var(--bg); border-radius: 8px; padding: 10px; }
+        .stat .value { font-size: 20px; font-weight: 600; }
+        .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .error { color: #b91c1c; font-size: 13px; white-space: pre-wrap; }
+        .empty { color: var(--muted); font-style: italic; }
+        .auth { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 14px; }
+        .auth input { width: 190px; }
+        .demo { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .demo button { font-size: 12px; padding: 3px 8px; }
+        .notification { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .notification.unread { font-weight: 600; }
+        .notification button { font-size: 11px; padding: 2px 6px; margin-left: 6px; }
+        .progress { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+        .progress div { height: 100%; background: var(--accent); }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Learning Platform</h1>
+    <a href="/swagger-ui.html" target="_blank">Swagger UI</a>
+    <a href="/v3/api-docs" target="_blank">OpenAPI JSON</a>
+    <a href="/actuator/health" target="_blank">Health</a>
+    <div class="auth" id="auth"></div>
+</header>
+<main>
+    <section>
+        <div class="card">
+            <h2>Курсы</h2>
+            <div class="filters">
+                <input id="query" placeholder="Поиск по названию">
+                <select id="status">
+                    <option value="">Любой статус</option>
+                    <option>PUBLISHED</option>
+                    <option>DRAFT</option>
+                    <option>ARCHIVED</option>
+                </select>
+                <select id="category"><option value="">Все категории</option></select>
+                <button id="search">Найти</button>
+            </div>
+            <div id="courses"></div>
+        </div>
+        <div class="card" id="login-card">
+            <h2>Вход</h2>
+            <div class="filters">
+                <input id="login-email" type="email" placeholder="Email" autocomplete="username">
+                <input id="login-password" type="password" placeholder="Пароль" autocomplete="current-password">
+                <button id="login">Войти</button>
+            </div>
+            <div class="meta">Демо-аккаунты (пароль — в README):</div>
+            <div class="demo" id="demo-accounts"></div>
+            <div id="login-error" class="error"></div>
+        </div>
+        <div class="card hidden" id="progress-card">
+            <h2>Мой прогресс</h2>
+            <div id="progress"></div>
+        </div>
+        <div class="card hidden" id="notifications-card">
+            <h2>Уведомления</h2>
+            <div id="notifications"></div>
+        </div>
+        <div class="card">
+            <h2>Популярные курсы</h2>
+            <div id="popular"></div>
+        </div>
+    </section>
+    <section id="details">
+        <div class="card"><p class="empty">Выберите курс слева</p></div>
+    </section>
+</main>
+<script>
+    const TOKEN_KEY = 'learning-platform-token';
+    const USER_KEY = 'learning-platform-user';
+    const DEMO_ACCOUNTS = [
+        ['Админ', 'admin@learning.local'],
+        ['Ирина (преп.)', 'irina.smirnova@learning.local'],
+        ['Павел (преп.)', 'pavel.orlov@learning.local'],
+        ['Анна', 'anna@learning.local'],
+        ['Борис', 'boris@learning.local'],
+        ['Вера', 'vera@learning.local']
+    ];
+
+    let session = { token: localStorage.getItem(TOKEN_KEY), user: JSON.parse(localStorage.getItem(USER_KEY) || 'null') };
+    let selectedCourseId = null;
+
+    const api = async (path, options = {}) => {
+        const headers = { 'Content-Type': 'application/json' };
+        if (session.token) {
+            headers.Authorization = 'Bearer ' + session.token;
+        }
+        const response = await fetch(path, { ...options, headers });
+        if (response.status === 401 && session.token) {
+            logout();
+        }
+        if (response.status === 204) {
+            return null;
+        }
+        const body = await response.json();
+        if (!response.ok) {
+            throw new Error(`${response.status} ${body.title || ''}: ${body.detail || ''}`);
+        }
+        return body;
+    };
+
+    const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmt = value => value === null || value === undefined ? '—' : value;
+    const el = id => document.getElementById(id);
+    const me = () => session.user;
+    const hasRole = role => me()?.role === role;
+    const canManage = course => hasRole('ADMIN') || (hasRole('TEACHER') && course.teacherId === me().id);
+
+    async function login() {
+        try {
+            const body = JSON.stringify({ email: el('login-email').value, password: el('login-password').value });
+            const token = await api('/api/auth/login', { method: 'POST', body });
+            session = { token: token.accessToken, user: token.user };
+            localStorage.setItem(TOKEN_KEY, session.token);
+            localStorage.setItem(USER_KEY, JSON.stringify(session.user));
+            el('login-password').value = '';
+            el('login-error').textContent = '';
+            await onSessionChanged();
+        } catch (e) {
+            el('login-error').textContent = e.message;
+        }
+    }
+
+    function logout() {
+        session = { token: null, user: null };
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        onSessionChanged();
+    }
+
+    function renderAuth() {
+        const user = me();
+        el('login-card').classList.toggle('hidden', !!user);
+        el('progress-card').classList.toggle('hidden', !hasRole('STUDENT'));
+        el('notifications-card').classList.toggle('hidden', !user);
+        el('auth').innerHTML = user
+            ? `<span>${escape(user.name)} <span class="badge">${user.role}</span></span><button class="secondary" id="logout">Выйти</button>`
+            : '<span class="meta">Гость: доступен только каталог</span>';
+        if (user) {
+            el('logout').addEventListener('click', logout);
+        }
+    }
+
+    async function onSessionChanged() {
+        renderAuth();
+        await Promise.all([loadNotifications(), loadProgress(), selectedCourseId ? showCourse(selectedCourseId) : null]);
+    }
+
+    async function loadNotifications() {
+        if (!me()) {
+            return;
+        }
+        const items = await api(`/api/users/${me().id}/notifications`);
+        el('notifications').innerHTML = items.length === 0 ? '<p class="empty">Уведомлений нет</p>' : items.slice(0, 8).map(n => `
+            <div class="notification ${n.read ? '' : 'unread'}">${escape(n.message)}
+                ${n.read ? '' : `<button class="secondary" data-read="${n.id}">прочитано</button>`}
+                <div class="meta">${new Date(n.createdAt).toLocaleString('ru-RU')}</div>
+            </div>`).join('');
+        document.querySelectorAll('[data-read]').forEach(button => button.addEventListener('click', async () => {
+            await api(`/api/notifications/${button.dataset.read}/read`, { method: 'PATCH' });
+            await loadNotifications();
+        }));
+    }
+
+    async function loadProgress() {
+        if (!hasRole('STUDENT')) {
+            return;
+        }
+        const progress = await api(`/api/analytics/students/${me().id}/progress`);
+        el('progress').innerHTML = progress.courses.length === 0 ? '<p class="empty">Вы ещё не записаны на курсы</p>' : progress.courses.map(c => `
+            <div style="margin-bottom: 10px">
+                <div>${escape(c.courseTitle)} <span class="badge">${c.enrollmentStatus}</span></div>
+                <div class="meta">Уроки ${c.lessonsCompleted}/${c.lessonsTotal} · задания ${c.assignmentsSubmitted}/${c.assignmentsTotal} · тесты ${c.quizzesPassed}/${c.quizzesTotal}</div>
+                <div class="progress"><div style="width: ${c.progressPercent}%"></div></div>
+            </div>`).join('');
+    }
+
+    async function loadCategories() {
+        const categories = await api('/api/categories');
+        el('category').innerHTML = '<option value="">Все категории</option>' +
+            categories.map(c => `<option value="${c.id}">${escape(c.name)}</option>`).join('');
+    }
+
+    async function loadCourses() {
+        const params = new URLSearchParams();
+        if (el('query').value) params.set('query', el('query').value);
+        if (el('status').value) params.set('status', el('status').value);
+        if (el('category').value) params.set('categoryId', el('category').value);
+        const page = await api('/api/courses?' + params);
+        el('courses').innerHTML = page.content.length === 0 ? '<p class="empty">Ничего не найдено</p>' : page.content.map(c => `
+            <div class="course ${c.id === selectedCourseId ? 'active' : ''}" data-id="${c.id}">
+                <div class="title">${escape(c.title)}</div>
+                <div class="meta"><span class="badge ${c.status}">${c.status}</span>${escape(c.categoryName)} · ${escape(c.teacherName)}</div>
+                <div class="meta">${c.tags.map(t => '#' + escape(t)).join(' ')}</div>
+            </div>`).join('');
+        document.querySelectorAll('.course').forEach(node => node.addEventListener('click', () => showCourse(Number(node.dataset.id))));
+    }
+
+    async function loadPopular() {
+        const popular = await api('/api/analytics/courses/popular?limit=5');
+        el('popular').innerHTML = popular.length === 0 ? '<p class="empty">Нет данных</p>' : `<table>
+            <tr><th>Курс</th><th>Студентов</th><th>Рейтинг</th></tr>
+            ${popular.map(p => `<tr><td>${escape(p.courseTitle)}</td><td>${p.enrollments}</td><td>${fmt(p.averageRating)}</td></tr>`).join('')}
+        </table>`;
+    }
+
+    async function showCourse(id) {
+        selectedCourseId = id;
+        document.querySelectorAll('.course').forEach(node => node.classList.toggle('active', Number(node.dataset.id) === id));
+        try {
+            const details = await api(`/api/courses/${id}`);
+            const manage = canManage(details.course);
+            const [stats, students, leaderboard, reviews, myEnrollments] = await Promise.all([
+                manage ? api(`/api/analytics/courses/${id}`) : null,
+                manage ? api(`/api/courses/${id}/students`) : null,
+                me() ? api(`/api/analytics/courses/${id}/leaderboard`) : null,
+                api(`/api/courses/${id}/reviews`),
+                hasRole('STUDENT') ? api(`/api/users/${me().id}/enrollments`) : null
+            ]);
+            el('details').innerHTML = renderDetails(details, stats) + renderEnrollment(id, students, myEnrollments) +
+                renderLeaderboard(leaderboard) + renderReviews(reviews);
+            bindEnrollment(id);
+        } catch (e) {
+            el('details').innerHTML = `<div class="card error">${escape(e.message)}</div>`;
+        }
+    }
+
+    function renderStats(stats) {
+        if (!stats) {
+            return '<p class="meta">Статистика курса доступна преподавателю курса и администратору.</p>';
+        }
+        return `<div class="stats">
+                <div class="stat"><div class="meta">Студентов</div><div class="value">${stats.totalEnrollments}</div></div>
+                <div class="stat"><div class="meta">Рейтинг</div><div class="value">${fmt(stats.averageRating)}</div></div>
+                <div class="stat"><div class="meta">Средний балл, %</div><div class="value">${fmt(stats.averageScorePercent)}</div></div>
+                <div class="stat"><div class="meta">Тесты сданы, %</div><div class="value">${fmt(stats.quizPassRatePercent)}</div></div>
+            </div>`;
+    }
+
+    function renderDetails(details, stats) {
+        const c = details.course;
+        const modules = details.modules.length === 0 ? '<p class="empty">Модулей пока нет</p>' : details.modules.map(m => `
+            <div class="module">
+                <h3>${m.orderIndex}. ${escape(m.title)} ${m.quizId ? '<span class="badge">тест</span>' : ''}</h3>
+                <div class="meta">${escape(m.description)}</div>
+                <ol>${m.lessons.map(l => `<li>${escape(l.title)} <span class="meta">${fmt(l.durationMinutes)} мин</span></li>`).join('')}</ol>
+            </div>`).join('');
+        return `<div class="card">
+            <h2>${escape(c.title)} <span class="badge ${c.status}">${c.status}</span></h2>
+            <p class="meta">${escape(details.description)}</p>
+            <p class="meta">Преподаватель: ${escape(c.teacherName)} · ${fmt(c.durationHours)} ч · старт ${fmt(c.startDate)}</p>
+            ${renderStats(stats)}
+            ${modules}
+        </div>`;
+    }
+
+    function renderEnrollment(courseId, students, myEnrollments) {
+        if (students) {
+            return renderStudents(students);
+        }
+        if (!myEnrollments) {
+            return `<div class="card"><h2>Запись</h2><p class="meta">${me() ? 'Записываться на курсы могут студенты.' : 'Войдите как студент, чтобы записаться.'}</p></div>`;
+        }
+        const mine = myEnrollments.find(e => e.courseId === courseId && e.status !== 'CANCELLED');
+        return `<div class="card">
+            <h2>Запись</h2>
+            ${mine ? `<p>Вы записаны · <span class="badge">${mine.status}</span></p><button class="secondary" data-unenroll="${me().id}">Отписаться</button>`
+                   : '<button id="enroll-self">Записаться на курс</button>'}
+            <div id="enroll-error" class="error"></div>
+        </div>`;
+    }
+
+    function renderStudents(students) {
+        const rows = students.map(s => `<tr><td>${escape(s.studentName)}</td><td>${s.status}</td>
+            <td>${new Date(s.enrolledAt).toLocaleDateString('ru-RU')}</td>
+            <td><button class="secondary" data-unenroll="${s.studentId}">Отписать</button></td></tr>`).join('');
+        return `<div class="card">
+            <h2>Студенты</h2>
+            ${students.length === 0 ? '<p class="empty">Пока никто не записан</p>' : `<table><tr><th>Имя</th><th>Статус</th><th>Дата</th><th></th></tr>${rows}</table>`}
+            <div id="enroll-error" class="error"></div>
+        </div>`;
+    }
+
+    function renderLeaderboard(entries) {
+        if (!entries) {
+            return '';
+        }
+        return `<div class="card">
+            <h2>Рейтинг по заданиям</h2>
+            ${entries.length === 0 ? '<p class="empty">Нет оценённых работ</p>' : `<table>
+                <tr><th>#</th><th>Студент</th><th>Баллы</th><th>Работ</th></tr>
+                ${entries.map((e, i) => `<tr><td>${i + 1}</td><td>${escape(e.studentName)}</td><td>${e.totalScore}</td><td>${e.gradedSubmissions}</td></tr>`).join('')}
+            </table>`}
+        </div>`;
+    }
+
+    function renderReviews(reviews) {
+        return `<div class="card">
+            <h2>Отзывы</h2>
+            ${reviews.length === 0 ? '<p class="empty">Отзывов нет</p>' : reviews.map(r => `
+                <p><strong>${escape(r.studentName)}</strong> ${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}<br>
+                <span class="meta">${escape(r.comment)}</span></p>`).join('')}
+        </div>`;
+    }
+
+    function bindEnrollment(courseId) {
+        const run = async action => {
+            try {
+                await action();
+                await refresh(courseId);
+            } catch (e) {
+                el('enroll-error').textContent = e.message;
+            }
+        };
+        el('enroll-self')?.addEventListener('click', () => run(() => api(`/api/courses/${courseId}/enroll?user=${me().id}`, { method: 'POST' })));
+        document.querySelectorAll('[data-unenroll]').forEach(button => button.addEventListener('click',
+            () => run(() => api(`/api/courses/${courseId}/enroll?user=${button.dataset.unenroll}`, { method: 'DELETE' }))));
+    }
+
+    async function refresh(courseId) {
+        await Promise.all([showCourse(courseId), loadPopular(), loadNotifications(), loadProgress()]);
+    }
+
+    el('demo-accounts').innerHTML = DEMO_ACCOUNTS.map(([label, email]) =>
+        `<button class="secondary" data-email="${email}">${label}</button>`).join('');
+    document.querySelectorAll('[data-email]').forEach(button => button.addEventListener('click', () => {
+        el('login-email').value = button.dataset.email;
+        el('login-password').focus();
+    }));
+    el('login').addEventListener('click', login);
+    el('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+    el('search').addEventListener('click', loadCourses);
+    el('query').addEventListener('keydown', e => { if (e.key === 'Enter') loadCourses(); });
+    renderAuth();
+    Promise.all([loadCategories(), loadCourses(), loadPopular(), loadNotifications(), loadProgress()]).catch(e => {
+        el('courses').innerHTML = `<p class="error">${escape(e.message)}</p>`;
+    });
+</script>
+</body>
+</html>
